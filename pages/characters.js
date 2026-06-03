@@ -71,6 +71,21 @@ function renderSidebar(sidebar, contentArea) {
   header.appendChild(addBtn);
   sidebar.appendChild(header);
 
+  // Search input
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.className = 'tag-input';
+  searchInput.placeholder = 'Search...';
+  searchInput.style.margin = '0.5rem 1rem';
+  searchInput.style.padding = '0.4rem 0.8rem';
+  searchInput.style.fontSize = '0.85rem';
+  searchInput.value = sidebar.currentSearchQuery || '';
+  searchInput.addEventListener('input', () => {
+    sidebar.currentSearchQuery = searchInput.value.toLowerCase();
+    filterList();
+  });
+  sidebar.appendChild(searchInput);
+
   const list = document.createElement('div');
   list.className = 'sidebar-list';
 
@@ -112,6 +127,22 @@ function renderSidebar(sidebar, contentArea) {
   }
 
   sidebar.appendChild(list);
+
+  const filterList = () => {
+    const query = sidebar.currentSearchQuery || '';
+    const items = list.querySelectorAll('.sidebar-item');
+    items.forEach(item => {
+      const name = item.querySelector('.sidebar-item-name').textContent.toLowerCase();
+      if (name.includes(query)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  };
+
+  // Run filter initially in case of redraw
+  filterList();
 }
 
 function renderCurrentCharacter(contentArea, sidebar) {

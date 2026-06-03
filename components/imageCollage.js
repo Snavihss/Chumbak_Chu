@@ -51,6 +51,8 @@ export function createCollage({ images = [], folder = 'misc', onChange }) {
         img.src = url;
         img.alt = `Reference ${index + 1}`;
         img.loading = 'lazy';
+        img.style.cursor = 'zoom-in';
+        img.addEventListener('click', () => showLightbox(url));
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'collage-item-remove';
@@ -149,4 +151,47 @@ export function createCollage({ images = [], folder = 'misc', onChange }) {
 
   render();
   return container;
+}
+
+function showLightbox(url) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cursor = 'zoom-out';
+  overlay.style.zIndex = '2000';
+  overlay.style.transition = 'opacity 0.2s ease';
+
+  const img = document.createElement('img');
+  img.src = url;
+  img.style.maxWidth = '90%';
+  img.style.maxHeight = '90vh';
+  img.style.objectFit = 'contain';
+  img.style.borderRadius = '12px';
+  img.style.boxShadow = '0 20px 50px rgba(0,0,0,0.6)';
+  img.style.transform = 'scale(0.95)';
+  img.style.transition = 'transform 0.2s ease';
+
+  overlay.appendChild(img);
+  document.body.appendChild(overlay);
+
+  setTimeout(() => {
+    img.style.transform = 'scale(1)';
+  }, 10);
+
+  const close = () => {
+    img.style.transform = 'scale(0.95)';
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      overlay.remove();
+    }, 200);
+  };
+
+  overlay.addEventListener('click', close);
+  
+  const escListener = (e) => {
+    if (e.key === 'Escape') {
+      close();
+      document.removeEventListener('keydown', escListener);
+    }
+  };
+  document.addEventListener('keydown', escListener);
 }
