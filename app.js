@@ -14,21 +14,7 @@
   var SUPABASE_KEY = 'sb_publishable_rJ59XgDDFfs7NdEFpvG9_A_kWkziLu5';
 
   function getConfig() {
-    return {
-      url: localStorage.getItem('supabase_url') || SUPABASE_URL,
-      key: localStorage.getItem('supabase_key') || SUPABASE_KEY,
-    };
-  }
-
-  function saveConfig(url, key) {
-    localStorage.setItem('supabase_url', url.trim());
-    localStorage.setItem('supabase_key', key.trim());
-    supabaseClient = null;
-  }
-
-  function isConfigured() {
-    const { url, key } = getConfig();
-    return url.length > 0 && key.length > 0;
+    return { url: SUPABASE_URL, key: SUPABASE_KEY };
   }
 
   function getClient() {
@@ -965,79 +951,13 @@
     }, 800);
   }
 
-  // ─── Settings Modal ──────────────────────────────────────
-  var settingsBtn = document.getElementById('settings-btn');
 
-  function openSettings() {
-    var config = getConfig();
-
-    var overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.id = 'settings-modal';
-
-    var modal = document.createElement('div');
-    modal.className = 'modal';
-
-    modal.innerHTML =
-      '<div class="modal-title">⚙️ Supabase Configuration</div>' +
-      '<div class="modal-text">Connect your Supabase project to enable data persistence and image uploads.</div>' +
-      '<div class="settings-form">' +
-      '  <div>' +
-      '    <label class="settings-label">Project URL</label>' +
-      '    <input type="text" class="settings-input" id="settings-url" ' +
-      '           placeholder="https://your-project.supabase.co" ' +
-      '           value="' + config.url + '">' +
-      '  </div>' +
-      '  <div>' +
-      '    <label class="settings-label">Anon / Public Key</label>' +
-      '    <input type="text" class="settings-input" id="settings-key" ' +
-      '           placeholder="eyJhbGciOiJIUzI1NiIs..." ' +
-      '           value="' + config.key + '">' +
-      '  </div>' +
-      '</div>' +
-      '<div class="modal-actions">' +
-      '  <button class="btn-cancel" id="settings-cancel">Cancel</button>' +
-      '  <button class="btn-add" id="settings-save">Save & Connect</button>' +
-      '</div>';
-
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) closeSettings();
-    });
-
-    document.getElementById('settings-cancel').addEventListener('click', closeSettings);
-    document.getElementById('settings-save').addEventListener('click', function () {
-      var url = document.getElementById('settings-url').value;
-      var key = document.getElementById('settings-key').value;
-      saveConfig(url, key);
-      closeSettings();
-      showToast('Supabase connected! ✓');
-      renderPage();
-    });
-  }
-
-  function closeSettings() {
-    var modal = document.getElementById('settings-modal');
-    if (modal) modal.remove();
-  }
-
-  settingsBtn.addEventListener('click', openSettings);
 
   // ─── Init ────────────────────────────────────────────────
   function init() {
     var hash = window.location.hash.replace('#', '') || 'home';
     currentPage = hash;
-
-    if (!isConfigured()) {
-      renderPage();
-      setTimeout(function () {
-        showToast('Click ⚙️ to configure Supabase');
-      }, 1000);
-    } else {
-      renderPage();
-    }
+    renderPage();
   }
 
   init();
