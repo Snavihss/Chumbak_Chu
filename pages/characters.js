@@ -31,15 +31,90 @@ export async function renderCharacters(container) {
   characters = await fetchCharacters();
   loader.remove();
 
-  // Content area
-  const contentArea = document.createElement('div');
-  contentArea.id = 'character-content';
-  page.appendChild(contentArea);
+  // Create layout container
+  const layout = document.createElement('div');
+  layout.className = 'layout-with-sidebar';
+  page.appendChild(layout);
 
-  renderCurrentCharacter(contentArea);
+  // Create sidebar
+  const sidebar = document.createElement('div');
+  sidebar.className = 'sidebar';
+  layout.appendChild(sidebar);
+
+  // Create main content
+  const contentArea = document.createElement('div');
+  contentArea.className = 'main-content';
+  contentArea.id = 'character-content';
+  layout.appendChild(contentArea);
+
+  renderSidebar(sidebar, contentArea);
+  renderCurrentCharacter(contentArea, sidebar);
 }
 
-function renderCurrentCharacter(contentArea) {
+function renderSidebar(sidebar, contentArea) {
+  sidebar.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'sidebar-header';
+
+  const title = document.createElement('span');
+  title.className = 'sidebar-title';
+  title.textContent = 'Characters';
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'sidebar-add-btn';
+  addBtn.textContent = '+';
+  addBtn.title = 'Add New Character';
+  addBtn.addEventListener('click', () => handleAddCharacter(contentArea, sidebar));
+
+  header.appendChild(title);
+  header.appendChild(addBtn);
+  sidebar.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'sidebar-list';
+
+  if (characters.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'sidebar-empty';
+    empty.textContent = 'No characters';
+    list.appendChild(empty);
+  } else {
+    characters.forEach((char, idx) => {
+      const item = document.createElement('div');
+      item.className = `sidebar-item ${idx === currentIndex ? 'active' : ''}`;
+      item.dataset.index = idx;
+      
+      const icon = document.createElement('span');
+      icon.className = 'sidebar-item-icon';
+      icon.textContent = '🎭';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'sidebar-item-name';
+      nameSpan.textContent = char.name || 'Unnamed Character';
+
+      const indexSpan = document.createElement('span');
+      indexSpan.className = 'sidebar-item-index';
+      indexSpan.textContent = idx + 1;
+
+      item.appendChild(icon);
+      item.appendChild(nameSpan);
+      item.appendChild(indexSpan);
+
+      item.addEventListener('click', () => {
+        currentIndex = idx;
+        renderSidebar(sidebar, contentArea);
+        renderCurrentCharacter(contentArea, sidebar);
+      });
+
+      list.appendChild(item);
+    });
+  }
+
+  sidebar.appendChild(list);
+}
+
+function renderCurrentCharacter(contentArea, sidebar) {
   contentArea.innerHTML = '';
 
   if (characters.length === 0) {
@@ -56,7 +131,7 @@ function renderCurrentCharacter(contentArea) {
     const addBtn = document.createElement('button');
     addBtn.className = 'btn-add';
     addBtn.textContent = '+ New Character';
-    addBtn.addEventListener('click', handleAddCharacter);
+    addBtn.addEventListener('click', () => handleAddCharacter(contentArea, sidebar));
     actions.appendChild(addBtn);
     contentArea.appendChild(actions);
     return;
@@ -76,7 +151,7 @@ function renderCurrentCharacter(contentArea) {
   prevBtn.className = 'page-btn';
   prevBtn.textContent = '‹ Prev';
   prevBtn.disabled = currentIndex === 0;
-  prevBtn.addEventListener('click', () => { currentIndex--; renderCurrentCharacter(contentArea); });
+  prevBtn.addEventListener('click', () => { currentIndex--; renderSidebar(sidebar, contentArea); renderCurrentCharacter(contentArea, sidebar); });
 
   const pageInfo = document.createElement('div');
   pageInfo.className = 'page-dots';
@@ -84,7 +159,7 @@ function renderCurrentCharacter(contentArea) {
     const dot = document.createElement('span');
     dot.className = `page-dot ${i === currentIndex ? 'active' : ''}`;
     dot.title = characters[i].name || `Character ${i + 1}`;
-    dot.addEventListener('click', () => { currentIndex = i; renderCurrentCharacter(contentArea); });
+    dot.addEventListener('click', () => { currentIndex = i; renderSidebar(sidebar, contentArea); renderCurrentCharacter(contentArea, sidebar); });
     pageInfo.appendChild(dot);
   });
 
@@ -92,7 +167,7 @@ function renderCurrentCharacter(contentArea) {
   nextBtn.className = 'page-btn';
   nextBtn.textContent = 'Next ›';
   nextBtn.disabled = currentIndex === characters.length - 1;
-  nextBtn.addEventListener('click', () => { currentIndex++; renderCurrentCharacter(contentArea); });
+  nextBtn.addEventListener('click', () => { currentIndex++; renderSidebar(sidebar, contentArea); renderCurrentCharacter(contentArea, sidebar); });
 
   const pageLabel = document.createElement('span');
   pageLabel.className = 'page-label';
@@ -118,6 +193,10 @@ function renderCurrentCharacter(contentArea) {
   nameInput.id = 'character-name-input';
   nameInput.addEventListener('input', () => {
     char.name = nameInput.value;
+    const nameSpan = sidebar.querySelector(`.sidebar-item[data-index="${currentIndex}"] .sidebar-item-name`);
+    if (nameSpan) {
+      nameSpan.textContent = nameInput.value || 'Unnamed Character';
+    }
     autoSave(char);
   });
   nameSection.appendChild(nameTitle);
@@ -185,33 +264,33 @@ function renderCurrentCharacter(contentArea) {
   const addBtn = document.createElement('button');
   addBtn.className = 'btn-add';
   addBtn.textContent = '+ New Character';
-  addBtn.addEventListener('click', handleAddCharacter);
+  addBtn.addEventListener('click', () => handleAddCharacter(contentArea, sidebar));
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn-delete';
   deleteBtn.textContent = '🗑 Delete Character';
-  deleteBtn.addEventListener('click', () => handleDeleteCharacter(contentArea, char));
+  deleteBtn.addEventListener('click', () => handleDeleteCharacter(contentArea, sidebar, char));
 
   actions.appendChild(addBtn);
   actions.appendChild(deleteBtn);
   contentArea.appendChild(actions);
 }
 
-async function handleAddCharacter() {
+async function handleAddCharacter(contentArea, sidebar) {
   showToast('Creating character...');
   const newChar = await createCharacter();
   if (newChar) {
     characters.push(newChar);
     currentIndex = characters.length - 1;
-    const contentArea = document.getElementById('character-content');
-    renderCurrentCharacter(contentArea);
+    renderSidebar(sidebar, contentArea);
+    renderCurrentCharacter(contentArea, sidebar);
     showToast('Character created!');
   } else {
     showToast('Failed — check Supabase config');
   }
 }
 
-async function handleDeleteCharacter(contentArea, char) {
+async function handleDeleteCharacter(contentArea, sidebar, char) {
   const confirmed = await showConfirm(
     'Delete Character',
     `Are you sure you want to delete "${char.name || 'Unnamed'}"? This action cannot be undone.`
@@ -221,7 +300,8 @@ async function handleDeleteCharacter(contentArea, char) {
   await apiDeleteCharacter(char.id);
   characters = characters.filter(c => c.id !== char.id);
   if (currentIndex >= characters.length) currentIndex = Math.max(0, characters.length - 1);
-  renderCurrentCharacter(contentArea);
+  renderSidebar(sidebar, contentArea);
+  renderCurrentCharacter(contentArea, sidebar);
   showToast('Character deleted');
 }
 

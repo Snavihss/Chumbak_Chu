@@ -523,11 +523,88 @@
     characters = await fetchCharacters();
     loader.remove();
 
-    var contentArea = document.createElement('div');
-    contentArea.id = 'character-content';
-    page.appendChild(contentArea);
+    // Layout wrapper: sidebar + main content
+    var layout = document.createElement('div');
+    layout.className = 'layout-with-sidebar';
 
+    // Sidebar
+    var sidebar = document.createElement('div');
+    sidebar.className = 'sidebar';
+    sidebar.id = 'char-sidebar';
+
+    var sidebarHeader = document.createElement('div');
+    sidebarHeader.className = 'sidebar-header';
+    var sidebarTitle = document.createElement('span');
+    sidebarTitle.className = 'sidebar-title';
+    sidebarTitle.textContent = 'Characters';
+    var sidebarAddBtn = document.createElement('button');
+    sidebarAddBtn.className = 'sidebar-add-btn';
+    sidebarAddBtn.title = 'Add new character';
+    sidebarAddBtn.innerHTML = '+';
+    sidebarAddBtn.addEventListener('click', handleAddCharacter);
+    sidebarHeader.appendChild(sidebarTitle);
+    sidebarHeader.appendChild(sidebarAddBtn);
+    sidebar.appendChild(sidebarHeader);
+
+    var sidebarList = document.createElement('div');
+    sidebarList.className = 'sidebar-list';
+    sidebarList.id = 'char-sidebar-list';
+    sidebar.appendChild(sidebarList);
+
+    layout.appendChild(sidebar);
+
+    // Main content
+    var contentArea = document.createElement('div');
+    contentArea.className = 'main-content';
+    contentArea.id = 'character-content';
+    layout.appendChild(contentArea);
+
+    page.appendChild(layout);
+
+    renderCharSidebar();
     renderCurrentCharacter(contentArea);
+  }
+
+  function renderCharSidebar() {
+    var sidebarList = document.getElementById('char-sidebar-list');
+    if (!sidebarList) return;
+    sidebarList.innerHTML = '';
+
+    if (characters.length === 0) {
+      var emptyMsg = document.createElement('div');
+      emptyMsg.className = 'sidebar-empty';
+      emptyMsg.textContent = 'No characters yet';
+      sidebarList.appendChild(emptyMsg);
+      return;
+    }
+
+    characters.forEach(function (c, i) {
+      var item = document.createElement('div');
+      item.className = 'sidebar-item' + (i === charIndex ? ' active' : '');
+      item.addEventListener('click', function () {
+        charIndex = i;
+        renderCharSidebar();
+        var contentArea = document.getElementById('character-content');
+        renderCurrentCharacter(contentArea);
+      });
+
+      var icon = document.createElement('span');
+      icon.className = 'sidebar-item-icon';
+      icon.textContent = '🎭';
+
+      var name = document.createElement('span');
+      name.className = 'sidebar-item-name';
+      name.textContent = c.name || 'Unnamed';
+
+      var idx = document.createElement('span');
+      idx.className = 'sidebar-item-index';
+      idx.textContent = '#' + (i + 1);
+
+      item.appendChild(icon);
+      item.appendChild(name);
+      item.appendChild(idx);
+      sidebarList.appendChild(item);
+    });
   }
 
   function renderCurrentCharacter(contentArea) {
@@ -538,17 +615,8 @@
       empty.className = 'empty-state';
       empty.innerHTML =
         '<div class="empty-state-icon">🎭</div>' +
-        '<div class="empty-state-text">No characters yet</div>';
+        '<div class="empty-state-text">No characters yet — click + to create one</div>';
       contentArea.appendChild(empty);
-
-      var actions = document.createElement('div');
-      actions.className = 'actions-bar';
-      var addBtn = document.createElement('button');
-      addBtn.className = 'btn-add';
-      addBtn.textContent = '+ New Character';
-      addBtn.addEventListener('click', handleAddCharacter);
-      actions.appendChild(addBtn);
-      contentArea.appendChild(actions);
       return;
     }
 
@@ -556,42 +624,6 @@
     if (charIndex < 0) charIndex = 0;
 
     var char = characters[charIndex];
-
-    // ── Pagination
-    var pagination = document.createElement('div');
-    pagination.className = 'pagination';
-
-    var prevBtn = document.createElement('button');
-    prevBtn.className = 'page-btn';
-    prevBtn.textContent = '‹ Prev';
-    prevBtn.disabled = charIndex === 0;
-    prevBtn.addEventListener('click', function () { charIndex--; renderCurrentCharacter(contentArea); });
-
-    var dotsWrap = document.createElement('div');
-    dotsWrap.className = 'page-dots';
-    characters.forEach(function (_, i) {
-      var dot = document.createElement('span');
-      dot.className = 'page-dot' + (i === charIndex ? ' active' : '');
-      dot.title = characters[i].name || ('Character ' + (i + 1));
-      dot.addEventListener('click', function () { charIndex = i; renderCurrentCharacter(contentArea); });
-      dotsWrap.appendChild(dot);
-    });
-
-    var pageLabel = document.createElement('span');
-    pageLabel.className = 'page-label';
-    pageLabel.textContent = (charIndex + 1) + ' / ' + characters.length;
-
-    var nextBtn = document.createElement('button');
-    nextBtn.className = 'page-btn';
-    nextBtn.textContent = 'Next ›';
-    nextBtn.disabled = charIndex === characters.length - 1;
-    nextBtn.addEventListener('click', function () { charIndex++; renderCurrentCharacter(contentArea); });
-
-    pagination.appendChild(prevBtn);
-    pagination.appendChild(dotsWrap);
-    pagination.appendChild(pageLabel);
-    pagination.appendChild(nextBtn);
-    contentArea.appendChild(pagination);
 
     // ── Character Name
     var nameSection = document.createElement('div');
@@ -608,6 +640,7 @@
     nameInput.addEventListener('input', function () {
       char.name = nameInput.value;
       charAutoSave(char);
+      renderCharSidebar();
     });
     nameSection.appendChild(nameTitle);
     nameSection.appendChild(nameInput);
@@ -667,21 +700,13 @@
     costumeSection.appendChild(costumeCollage);
     contentArea.appendChild(costumeSection);
 
-    // ── Actions
+    // ── Delete button
     var actions = document.createElement('div');
     actions.className = 'actions-bar';
-
-    var addBtn = document.createElement('button');
-    addBtn.className = 'btn-add';
-    addBtn.textContent = '+ New Character';
-    addBtn.addEventListener('click', handleAddCharacter);
-
     var deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn-delete';
     deleteBtn.textContent = '🗑 Delete Character';
     deleteBtn.addEventListener('click', function () { handleDeleteCharacter(contentArea, char); });
-
-    actions.appendChild(addBtn);
     actions.appendChild(deleteBtn);
     contentArea.appendChild(actions);
   }
@@ -692,6 +717,7 @@
     if (newChar) {
       characters.push(newChar);
       charIndex = characters.length - 1;
+      renderCharSidebar();
       var contentArea = document.getElementById('character-content');
       renderCurrentCharacter(contentArea);
       showToast('Character created!');
@@ -710,6 +736,7 @@
     await deleteCharacterDB(char.id);
     characters = characters.filter(function (c) { return c.id !== char.id; });
     if (charIndex >= characters.length) charIndex = Math.max(0, characters.length - 1);
+    renderCharSidebar();
     renderCurrentCharacter(contentArea);
     showToast('Character deleted');
   }
@@ -748,11 +775,88 @@
     scenes = await fetchScenes();
     loader.remove();
 
-    var contentArea = document.createElement('div');
-    contentArea.id = 'scene-content';
-    page.appendChild(contentArea);
+    // Layout wrapper: sidebar + main content
+    var layout = document.createElement('div');
+    layout.className = 'layout-with-sidebar';
 
+    // Sidebar
+    var sidebar = document.createElement('div');
+    sidebar.className = 'sidebar';
+    sidebar.id = 'scene-sidebar';
+
+    var sidebarHeader = document.createElement('div');
+    sidebarHeader.className = 'sidebar-header';
+    var sidebarTitle = document.createElement('span');
+    sidebarTitle.className = 'sidebar-title';
+    sidebarTitle.textContent = 'Scenes';
+    var sidebarAddBtn = document.createElement('button');
+    sidebarAddBtn.className = 'sidebar-add-btn';
+    sidebarAddBtn.title = 'Add new scene';
+    sidebarAddBtn.innerHTML = '+';
+    sidebarAddBtn.addEventListener('click', handleAddScene);
+    sidebarHeader.appendChild(sidebarTitle);
+    sidebarHeader.appendChild(sidebarAddBtn);
+    sidebar.appendChild(sidebarHeader);
+
+    var sidebarList = document.createElement('div');
+    sidebarList.className = 'sidebar-list';
+    sidebarList.id = 'scene-sidebar-list';
+    sidebar.appendChild(sidebarList);
+
+    layout.appendChild(sidebar);
+
+    // Main content
+    var contentArea = document.createElement('div');
+    contentArea.className = 'main-content';
+    contentArea.id = 'scene-content';
+    layout.appendChild(contentArea);
+
+    page.appendChild(layout);
+
+    renderSceneSidebar();
     renderCurrentScene(contentArea);
+  }
+
+  function renderSceneSidebar() {
+    var sidebarList = document.getElementById('scene-sidebar-list');
+    if (!sidebarList) return;
+    sidebarList.innerHTML = '';
+
+    if (scenes.length === 0) {
+      var emptyMsg = document.createElement('div');
+      emptyMsg.className = 'sidebar-empty';
+      emptyMsg.textContent = 'No scenes yet';
+      sidebarList.appendChild(emptyMsg);
+      return;
+    }
+
+    scenes.forEach(function (s, i) {
+      var item = document.createElement('div');
+      item.className = 'sidebar-item' + (i === sceneIndex ? ' active' : '');
+      item.addEventListener('click', function () {
+        sceneIndex = i;
+        renderSceneSidebar();
+        var contentArea = document.getElementById('scene-content');
+        renderCurrentScene(contentArea);
+      });
+
+      var icon = document.createElement('span');
+      icon.className = 'sidebar-item-icon';
+      icon.textContent = '🎬';
+
+      var name = document.createElement('span');
+      name.className = 'sidebar-item-name';
+      name.textContent = s.name || 'Unnamed';
+
+      var idx = document.createElement('span');
+      idx.className = 'sidebar-item-index';
+      idx.textContent = '#' + (i + 1);
+
+      item.appendChild(icon);
+      item.appendChild(name);
+      item.appendChild(idx);
+      sidebarList.appendChild(item);
+    });
   }
 
   function renderCurrentScene(contentArea) {
@@ -763,17 +867,8 @@
       empty.className = 'empty-state';
       empty.innerHTML =
         '<div class="empty-state-icon">🎬</div>' +
-        '<div class="empty-state-text">No scenes yet</div>';
+        '<div class="empty-state-text">No scenes yet — click + to create one</div>';
       contentArea.appendChild(empty);
-
-      var actions = document.createElement('div');
-      actions.className = 'actions-bar';
-      var addBtn = document.createElement('button');
-      addBtn.className = 'btn-add';
-      addBtn.textContent = '+ New Scene';
-      addBtn.addEventListener('click', handleAddScene);
-      actions.appendChild(addBtn);
-      contentArea.appendChild(actions);
       return;
     }
 
@@ -781,42 +876,6 @@
     if (sceneIndex < 0) sceneIndex = 0;
 
     var scene = scenes[sceneIndex];
-
-    // ── Pagination
-    var pagination = document.createElement('div');
-    pagination.className = 'pagination';
-
-    var prevBtn = document.createElement('button');
-    prevBtn.className = 'page-btn';
-    prevBtn.textContent = '‹ Prev';
-    prevBtn.disabled = sceneIndex === 0;
-    prevBtn.addEventListener('click', function () { sceneIndex--; renderCurrentScene(contentArea); });
-
-    var dotsWrap = document.createElement('div');
-    dotsWrap.className = 'page-dots';
-    scenes.forEach(function (_, i) {
-      var dot = document.createElement('span');
-      dot.className = 'page-dot' + (i === sceneIndex ? ' active' : '');
-      dot.title = scenes[i].name || ('Scene ' + (i + 1));
-      dot.addEventListener('click', function () { sceneIndex = i; renderCurrentScene(contentArea); });
-      dotsWrap.appendChild(dot);
-    });
-
-    var pageLabel = document.createElement('span');
-    pageLabel.className = 'page-label';
-    pageLabel.textContent = (sceneIndex + 1) + ' / ' + scenes.length;
-
-    var nextBtn = document.createElement('button');
-    nextBtn.className = 'page-btn';
-    nextBtn.textContent = 'Next ›';
-    nextBtn.disabled = sceneIndex === scenes.length - 1;
-    nextBtn.addEventListener('click', function () { sceneIndex++; renderCurrentScene(contentArea); });
-
-    pagination.appendChild(prevBtn);
-    pagination.appendChild(dotsWrap);
-    pagination.appendChild(pageLabel);
-    pagination.appendChild(nextBtn);
-    contentArea.appendChild(pagination);
 
     // ── Scene Name
     var nameSection = document.createElement('div');
@@ -833,6 +892,7 @@
     nameInput.addEventListener('input', function () {
       scene.name = nameInput.value;
       sceneAutoSave(scene);
+      renderSceneSidebar();
     });
     nameSection.appendChild(nameTitle);
     nameSection.appendChild(nameInput);
@@ -892,21 +952,13 @@
     lightingImgSection.appendChild(lightingCollage);
     contentArea.appendChild(lightingImgSection);
 
-    // ── Actions
+    // ── Delete button
     var actions = document.createElement('div');
     actions.className = 'actions-bar';
-
-    var addBtn = document.createElement('button');
-    addBtn.className = 'btn-add';
-    addBtn.textContent = '+ New Scene';
-    addBtn.addEventListener('click', handleAddScene);
-
     var deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn-delete';
     deleteBtn.textContent = '🗑 Delete Scene';
     deleteBtn.addEventListener('click', function () { handleDeleteScene(contentArea, scene); });
-
-    actions.appendChild(addBtn);
     actions.appendChild(deleteBtn);
     contentArea.appendChild(actions);
   }
@@ -917,6 +969,7 @@
     if (newScene) {
       scenes.push(newScene);
       sceneIndex = scenes.length - 1;
+      renderSceneSidebar();
       var contentArea = document.getElementById('scene-content');
       renderCurrentScene(contentArea);
       showToast('Scene created!');
@@ -935,6 +988,7 @@
     await deleteSceneDB(scene.id);
     scenes = scenes.filter(function (s) { return s.id !== scene.id; });
     if (sceneIndex >= scenes.length) sceneIndex = Math.max(0, scenes.length - 1);
+    renderSceneSidebar();
     renderCurrentScene(contentArea);
     showToast('Scene deleted');
   }

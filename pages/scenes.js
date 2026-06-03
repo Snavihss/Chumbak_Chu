@@ -31,15 +31,90 @@ export async function renderScenes(container) {
   scenes = await fetchScenes();
   loader.remove();
 
-  // Content area
-  const contentArea = document.createElement('div');
-  contentArea.id = 'scene-content';
-  page.appendChild(contentArea);
+  // Create layout container
+  const layout = document.createElement('div');
+  layout.className = 'layout-with-sidebar';
+  page.appendChild(layout);
 
-  renderCurrentScene(contentArea);
+  // Create sidebar
+  const sidebar = document.createElement('div');
+  sidebar.className = 'sidebar';
+  layout.appendChild(sidebar);
+
+  // Create main content
+  const contentArea = document.createElement('div');
+  contentArea.className = 'main-content';
+  contentArea.id = 'scene-content';
+  layout.appendChild(contentArea);
+
+  renderSidebar(sidebar, contentArea);
+  renderCurrentScene(contentArea, sidebar);
 }
 
-function renderCurrentScene(contentArea) {
+function renderSidebar(sidebar, contentArea) {
+  sidebar.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'sidebar-header';
+
+  const title = document.createElement('span');
+  title.className = 'sidebar-title';
+  title.textContent = 'Scenes';
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'sidebar-add-btn';
+  addBtn.textContent = '+';
+  addBtn.title = 'Add New Scene';
+  addBtn.addEventListener('click', () => handleAddScene(contentArea, sidebar));
+
+  header.appendChild(title);
+  header.appendChild(addBtn);
+  sidebar.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'sidebar-list';
+
+  if (scenes.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'sidebar-empty';
+    empty.textContent = 'No scenes';
+    list.appendChild(empty);
+  } else {
+    scenes.forEach((scene, idx) => {
+      const item = document.createElement('div');
+      item.className = `sidebar-item ${idx === currentIndex ? 'active' : ''}`;
+      item.dataset.index = idx;
+      
+      const icon = document.createElement('span');
+      icon.className = 'sidebar-item-icon';
+      icon.textContent = '🎬';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'sidebar-item-name';
+      nameSpan.textContent = scene.name || 'Unnamed Scene';
+
+      const indexSpan = document.createElement('span');
+      indexSpan.className = 'sidebar-item-index';
+      indexSpan.textContent = idx + 1;
+
+      item.appendChild(icon);
+      item.appendChild(nameSpan);
+      item.appendChild(indexSpan);
+
+      item.addEventListener('click', () => {
+        currentIndex = idx;
+        renderSidebar(sidebar, contentArea);
+        renderCurrentScene(contentArea, sidebar);
+      });
+
+      list.appendChild(item);
+    });
+  }
+
+  sidebar.appendChild(list);
+}
+
+function renderCurrentScene(contentArea, sidebar) {
   contentArea.innerHTML = '';
 
   if (scenes.length === 0) {
@@ -56,7 +131,7 @@ function renderCurrentScene(contentArea) {
     const addBtn = document.createElement('button');
     addBtn.className = 'btn-add';
     addBtn.textContent = '+ New Scene';
-    addBtn.addEventListener('click', handleAddScene);
+    addBtn.addEventListener('click', () => handleAddScene(contentArea, sidebar));
     actions.appendChild(addBtn);
     contentArea.appendChild(actions);
     return;
@@ -76,7 +151,7 @@ function renderCurrentScene(contentArea) {
   prevBtn.className = 'page-btn';
   prevBtn.textContent = '‹ Prev';
   prevBtn.disabled = currentIndex === 0;
-  prevBtn.addEventListener('click', () => { currentIndex--; renderCurrentScene(contentArea); });
+  prevBtn.addEventListener('click', () => { currentIndex--; renderSidebar(sidebar, contentArea); renderCurrentScene(contentArea, sidebar); });
 
   const pageInfo = document.createElement('div');
   pageInfo.className = 'page-dots';
@@ -84,7 +159,7 @@ function renderCurrentScene(contentArea) {
     const dot = document.createElement('span');
     dot.className = `page-dot ${i === currentIndex ? 'active' : ''}`;
     dot.title = scenes[i].name || `Scene ${i + 1}`;
-    dot.addEventListener('click', () => { currentIndex = i; renderCurrentScene(contentArea); });
+    dot.addEventListener('click', () => { currentIndex = i; renderSidebar(sidebar, contentArea); renderCurrentScene(contentArea, sidebar); });
     pageInfo.appendChild(dot);
   });
 
@@ -92,7 +167,7 @@ function renderCurrentScene(contentArea) {
   nextBtn.className = 'page-btn';
   nextBtn.textContent = 'Next ›';
   nextBtn.disabled = currentIndex === scenes.length - 1;
-  nextBtn.addEventListener('click', () => { currentIndex++; renderCurrentScene(contentArea); });
+  nextBtn.addEventListener('click', () => { currentIndex++; renderSidebar(sidebar, contentArea); renderCurrentScene(contentArea, sidebar); });
 
   const pageLabel = document.createElement('span');
   pageLabel.className = 'page-label';
@@ -118,6 +193,10 @@ function renderCurrentScene(contentArea) {
   nameInput.id = 'scene-name-input';
   nameInput.addEventListener('input', () => {
     scene.name = nameInput.value;
+    const nameSpan = sidebar.querySelector(`.sidebar-item[data-index="${currentIndex}"] .sidebar-item-name`);
+    if (nameSpan) {
+      nameSpan.textContent = nameInput.value || 'Unnamed Scene';
+    }
     autoSave(scene);
   });
   nameSection.appendChild(nameTitle);
@@ -185,33 +264,33 @@ function renderCurrentScene(contentArea) {
   const addBtn = document.createElement('button');
   addBtn.className = 'btn-add';
   addBtn.textContent = '+ New Scene';
-  addBtn.addEventListener('click', handleAddScene);
+  addBtn.addEventListener('click', () => handleAddScene(contentArea, sidebar));
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn-delete';
   deleteBtn.textContent = '🗑 Delete Scene';
-  deleteBtn.addEventListener('click', () => handleDeleteScene(contentArea, scene));
+  deleteBtn.addEventListener('click', () => handleDeleteScene(contentArea, sidebar, scene));
 
   actions.appendChild(addBtn);
   actions.appendChild(deleteBtn);
   contentArea.appendChild(actions);
 }
 
-async function handleAddScene() {
+async function handleAddScene(contentArea, sidebar) {
   showToast('Creating scene...');
   const newScene = await createScene();
   if (newScene) {
     scenes.push(newScene);
     currentIndex = scenes.length - 1;
-    const contentArea = document.getElementById('scene-content');
-    renderCurrentScene(contentArea);
+    renderSidebar(sidebar, contentArea);
+    renderCurrentScene(contentArea, sidebar);
     showToast('Scene created!');
   } else {
     showToast('Failed — check Supabase config');
   }
 }
 
-async function handleDeleteScene(contentArea, scene) {
+async function handleDeleteScene(contentArea, sidebar, scene) {
   const confirmed = await showConfirm(
     'Delete Scene',
     `Are you sure you want to delete "${scene.name || 'Unnamed'}"? This action cannot be undone.`
@@ -221,7 +300,8 @@ async function handleDeleteScene(contentArea, scene) {
   await apiDeleteScene(scene.id);
   scenes = scenes.filter(s => s.id !== scene.id);
   if (currentIndex >= scenes.length) currentIndex = Math.max(0, scenes.length - 1);
-  renderCurrentScene(contentArea);
+  renderSidebar(sidebar, contentArea);
+  renderCurrentScene(contentArea, sidebar);
   showToast('Scene deleted');
 }
 
