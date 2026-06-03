@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      background-color: #111827;
+      color: #f1f5f9;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 12px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+    h3 {
+      margin: 0 0 10px 0;
+      color: #3b82f6;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #ef4444;
+      display: inline-block;
+    }
+    .status-dot.connected {
+      background-color: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    .btn {
+      background: #3b82f6;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      margin-top: auto;
+    }
+    .btn:hover {
+      background: #2563eb;
+    }
+    .log-box {
+      background: #000;
+      border-radius: 6px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 10px;
+      overflow-y: auto;
+      flex: 1;
+      margin-bottom: 10px;
+      color: #a7f3d0;
+      max-height: 180px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h3>⚡ Chumbak Chu Sync</h3>
+  
+  <div class="status-card">
+    <div class="status-row">
+      <span>Supabase Realtime:</span>
+      <span style="display: flex; align-items: center; gap: 6px;">
+        <span id="sync-status-dot" class="status-dot"></span>
+        <span id="sync-status-text">Disconnected</span>
+      </span>
+    </div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">
+      Tag Figma frames as [ID: UUID] to sync.
+    </div>
+  </div>
+
+  <div class="log-box" id="log">Initializing sync...</div>
+
+  <button class="btn" id="btn-pull">Pull Latest from DB</button>
+
+  <script>
+    const SUPABASE_URL = "https://spyyuyexrqhaxfpdoxyp.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_rJ59XgDDFfs7NdEFpvG9_A_kWkziLu5";
+
+    let supabase;
+    const logEl = document.getElementById('log');
+    const statusDot = document.getElementById('sync-status-dot');
+    const statusText = document.getElementById('sync-status-text');
+
+    function log(msg) {
+      const p = document.createElement('div');
+      p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      log("Supabase Client initialized successfully.");
+      
+      // Update status
+      statusDot.classList.add('connected');
+      statusText.textContent = "Connected";
+
+      // Subscribe to Realtime changes on characters
+      supabase
+        .channel('schema-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'characters' }, payload => {
+          log(`DB Character modified: ${payload.new.name || 'Unnamed'}`);
+          // Send update down to the Figma Canvas code
+          parent.postMessage({ pluginMessage: { type: 'sync-from-db', table: 'characters', record: payload.new } }, '*');
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'scenes' }, payload => {
+          log(`DB Scene modified: ${payload.new.name || 'Unnamed'}`);
+          // Send update down to the Figma Canvas code
+          parent.postMessage({ pluginMessage: { type: 'sync-from-db', table: 'scenes', record: payload.new } }, '*');
+        })
+        .subscribe();
+        
+      log("Listening for database changes...");
+    } catch (e) {
+      log(`Error initializing: ${e.message}`);
+    }
+
+    // Pull Button Action
+    document.getElementById('btn-pull').onclick = async () => {
+      log("Fetching latest database records...");
+      try {
+        const { data: chars } = await supabase.from('characters').select('*');
+        const { data: scenes } = await supabase.from('scenes').select('*');
+        
+        log(`Fetched ${chars.length} characters & ${scenes.length} scenes.`);
+        parent.postMessage({ pluginMessage: { type: 'bulk-pull-data', characters: chars, scenes: scenes } }, '*');
+      } catch (err) {
+        log(`Error pulling data: ${err.message}`);
+      }
+    };
+
+    // Handle messages coming from Figma code.js
+    window.onmessage = async (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+
+      if (msg.type === 'sync-to-db') {
+        const { table, id, field, value } = msg;
+        log(`Figma update ➔ DB [${table} : ${field}]`);
+        try {
+          const updateObj = {};
+          updateObj[field] = value;
+          const { error } = await supabase.from(table).update(updateObj).eq('id', id);
+          if (error) throw error;
+        } catch (err) {
+          log(`Sync fail: ${err.message}`);
+        }
+      } else if (msg.type === 'fetch-image-bytes') {
+        // Fetch image URL from internet and send raw bytes back to figma code.js
+        try {
+          const response = await fetch(msg.url);
+          const buffer = await response.arrayBuffer();
+          parent.postMessage({ 
+            pluginMessage: { 
+              type: 'image-bytes-result', 
+              url: msg.url, 
+              bytes: new Uint8Array(buffer),
+              targetNodeId: msg.targetNodeId,
+              fillIndex: msg.fillIndex
+            } 
+          }, '*');
+        } catch (err) {
+          log(`Failed to fetch image bytes: ${err.message}`);
+        }
+      }
+    };
+  </script>
+</body>
+</html>
