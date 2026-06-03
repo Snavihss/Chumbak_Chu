@@ -9,10 +9,14 @@
   // ─── Supabase Client ─────────────────────────────────────
   let supabaseClient = null;
 
+  // Default Supabase credentials (anon key is public by design — safe to commit)
+  var SUPABASE_URL = 'https://spyyuyexrqhaxfpdoxyp.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_rJ59XgDDFfs7NdEFpvG9_A_kWkziLu5';
+
   function getConfig() {
     return {
-      url: localStorage.getItem('supabase_url') || '',
-      key: localStorage.getItem('supabase_key') || '',
+      url: localStorage.getItem('supabase_url') || SUPABASE_URL,
+      key: localStorage.getItem('supabase_key') || SUPABASE_KEY,
     };
   }
 
