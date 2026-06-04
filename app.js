@@ -42,7 +42,7 @@
     if (!client) return null;
     const { data, error } = await client
       .from('characters')
-      .insert({ name: '', characteristics: [], personality_images: [], costume_images: [] })
+      .insert({ name: '', description: '', characteristics: [], personality_images: [], costume_images: [] })
       .select()
       .single();
     if (error) { console.error('createCharacter:', error); return null; }
@@ -80,7 +80,7 @@
     if (!client) return null;
     const { data, error } = await client
       .from('scenes')
-      .insert({ name: '', visual_images: [], lighting_tags: [], lighting_images: [] })
+      .insert({ name: '', description: '', visual_images: [], lighting_tags: [], lighting_images: [] })
       .select()
       .single();
     if (error) { console.error('createScene:', error); return null; }
@@ -287,6 +287,8 @@
           img.src = url;
           img.alt = 'Reference ' + (index + 1);
           img.loading = 'lazy';
+          img.style.cursor = 'zoom-in';
+          img.addEventListener('click', function () { showLightbox(url); });
 
           var removeBtn = document.createElement('button');
           removeBtn.className = 'collage-item-remove';
@@ -381,6 +383,49 @@
 
     render();
     return container;
+  }
+
+  function showLightbox(url) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cursor = 'zoom-out';
+    overlay.style.zIndex = '2000';
+    overlay.style.transition = 'opacity 0.2s ease';
+
+    var img = document.createElement('img');
+    img.src = url;
+    img.style.maxWidth = '90%';
+    img.style.maxHeight = '90vh';
+    img.style.objectFit = 'contain';
+    img.style.borderRadius = '12px';
+    img.style.boxShadow = '0 20px 50px rgba(0,0,0,0.6)';
+    img.style.transform = 'scale(0.95)';
+    img.style.transition = 'transform 0.2s ease';
+
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+
+    setTimeout(function () {
+      img.style.transform = 'scale(1)';
+    }, 10);
+
+    var close = function () {
+      img.style.transform = 'scale(0.95)';
+      overlay.style.opacity = '0';
+      setTimeout(function () {
+        overlay.remove();
+      }, 200);
+    };
+
+    overlay.addEventListener('click', close);
+    
+    var escListener = function (e) {
+      if (e.key === 'Escape') {
+        close();
+        document.removeEventListener('keydown', escListener);
+      }
+    };
+    document.addEventListener('keydown', escListener);
   }
 
   // ─── Navigation Bar Component ────────────────────────────
@@ -546,6 +591,21 @@
     sidebarHeader.appendChild(sidebarAddBtn);
     sidebar.appendChild(sidebarHeader);
 
+    // Search input
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'tag-input';
+    searchInput.placeholder = 'Search...';
+    searchInput.style.margin = '0.5rem 1rem';
+    searchInput.style.padding = '0.4rem 0.8rem';
+    searchInput.style.fontSize = '0.85rem';
+    searchInput.value = sidebar.currentSearchQuery || '';
+    searchInput.addEventListener('input', function () {
+      sidebar.currentSearchQuery = searchInput.value.toLowerCase();
+      filterCharList();
+    });
+    sidebar.appendChild(searchInput);
+
     var sidebarList = document.createElement('div');
     sidebarList.className = 'sidebar-list';
     sidebarList.id = 'char-sidebar-list';
@@ -605,6 +665,25 @@
       item.appendChild(idx);
       sidebarList.appendChild(item);
     });
+
+    filterCharList();
+  }
+
+  function filterCharList() {
+    var sidebar = document.getElementById('char-sidebar');
+    if (!sidebar) return;
+    var query = sidebar.currentSearchQuery || '';
+    var list = document.getElementById('char-sidebar-list');
+    if (!list) return;
+    var items = list.querySelectorAll('.sidebar-item');
+    items.forEach(function (item) {
+      var name = item.querySelector('.sidebar-item-name').textContent.toLowerCase();
+      if (name.includes(query)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
+    });
   }
 
   function renderCurrentCharacter(contentArea) {
@@ -645,6 +724,38 @@
     nameSection.appendChild(nameTitle);
     nameSection.appendChild(nameInput);
     contentArea.appendChild(nameSection);
+
+    // ── Character Description
+    var descSection = document.createElement('div');
+    descSection.className = 'section-card';
+    var descTitle = document.createElement('div');
+    descTitle.className = 'section-title';
+    descTitle.textContent = 'Description';
+    var descInput = document.createElement('textarea');
+    descInput.className = 'tag-input';
+    descInput.style.width = '100%';
+    descInput.style.minHeight = '80px';
+    descInput.style.background = 'rgba(255, 255, 255, 0.02)';
+    descInput.style.border = '1px solid var(--border)';
+    descInput.style.borderRadius = 'var(--radius-input)';
+    descInput.style.color = 'var(--text-primary)';
+    descInput.style.padding = '0.75rem 1rem';
+    descInput.style.fontSize = '0.95rem';
+    descInput.style.outline = 'none';
+    descInput.style.resize = 'vertical';
+    descInput.style.fontFamily = 'var(--font)';
+    descInput.style.transition = 'border-color 0.3s ease';
+    descInput.addEventListener('focus', function () { descInput.style.borderColor = 'var(--primary)'; });
+    descInput.addEventListener('blur', function () { descInput.style.borderColor = 'var(--border)'; });
+    descInput.placeholder = 'Enter character description...';
+    descInput.value = char.description || '';
+    descInput.addEventListener('input', function () {
+      char.description = descInput.value;
+      charAutoSave(char);
+    });
+    descSection.appendChild(descTitle);
+    descSection.appendChild(descInput);
+    contentArea.appendChild(descSection);
 
     // ── Characteristics
     var charSection = document.createElement('div');
@@ -746,6 +857,7 @@
     charSaveTimeout = setTimeout(async function () {
       await updateCharacterDB(char.id, {
         name: char.name,
+        description: char.description,
         characteristics: char.characteristics,
         personality_images: char.personality_images,
         costume_images: char.costume_images,
@@ -797,6 +909,21 @@
     sidebarHeader.appendChild(sidebarTitle);
     sidebarHeader.appendChild(sidebarAddBtn);
     sidebar.appendChild(sidebarHeader);
+
+    // Search input
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'tag-input';
+    searchInput.placeholder = 'Search...';
+    searchInput.style.margin = '0.5rem 1rem';
+    searchInput.style.padding = '0.4rem 0.8rem';
+    searchInput.style.fontSize = '0.85rem';
+    searchInput.value = sidebar.currentSearchQuery || '';
+    searchInput.addEventListener('input', function () {
+      sidebar.currentSearchQuery = searchInput.value.toLowerCase();
+      filterSceneList();
+    });
+    sidebar.appendChild(searchInput);
 
     var sidebarList = document.createElement('div');
     sidebarList.className = 'sidebar-list';
@@ -857,6 +984,25 @@
       item.appendChild(idx);
       sidebarList.appendChild(item);
     });
+
+    filterSceneList();
+  }
+
+  function filterSceneList() {
+    var sidebar = document.getElementById('scene-sidebar');
+    if (!sidebar) return;
+    var query = sidebar.currentSearchQuery || '';
+    var list = document.getElementById('scene-sidebar-list');
+    if (!list) return;
+    var items = list.querySelectorAll('.sidebar-item');
+    items.forEach(function (item) {
+      var name = item.querySelector('.sidebar-item-name').textContent.toLowerCase();
+      if (name.includes(query)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
+    });
   }
 
   function renderCurrentScene(contentArea) {
@@ -897,6 +1043,38 @@
     nameSection.appendChild(nameTitle);
     nameSection.appendChild(nameInput);
     contentArea.appendChild(nameSection);
+
+    // ── Scene Description
+    var descSection = document.createElement('div');
+    descSection.className = 'section-card';
+    var descTitle = document.createElement('div');
+    descTitle.className = 'section-title';
+    descTitle.textContent = 'Description';
+    var descInput = document.createElement('textarea');
+    descInput.className = 'tag-input';
+    descInput.style.width = '100%';
+    descInput.style.minHeight = '80px';
+    descInput.style.background = 'rgba(255, 255, 255, 0.02)';
+    descInput.style.border = '1px solid var(--border)';
+    descInput.style.borderRadius = 'var(--radius-input)';
+    descInput.style.color = 'var(--text-primary)';
+    descInput.style.padding = '0.75rem 1rem';
+    descInput.style.fontSize = '0.95rem';
+    descInput.style.outline = 'none';
+    descInput.style.resize = 'vertical';
+    descInput.style.fontFamily = 'var(--font)';
+    descInput.style.transition = 'border-color 0.3s ease';
+    descInput.addEventListener('focus', function () { descInput.style.borderColor = 'var(--primary)'; });
+    descInput.addEventListener('blur', function () { descInput.style.borderColor = 'var(--border)'; });
+    descInput.placeholder = 'Enter scene description...';
+    descInput.value = scene.description || '';
+    descInput.addEventListener('input', function () {
+      scene.description = descInput.value;
+      sceneAutoSave(scene);
+    });
+    descSection.appendChild(descTitle);
+    descSection.appendChild(descInput);
+    contentArea.appendChild(descSection);
 
     // ── Visual References
     var visualSection = document.createElement('div');
@@ -998,6 +1176,7 @@
     sceneSaveTimeout = setTimeout(async function () {
       await updateSceneDB(scene.id, {
         name: scene.name,
+        description: scene.description,
         visual_images: scene.visual_images,
         lighting_tags: scene.lighting_tags,
         lighting_images: scene.lighting_images,
