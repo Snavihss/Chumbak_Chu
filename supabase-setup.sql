@@ -7,6 +7,7 @@
 CREATE TABLE IF NOT EXISTS characters (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL DEFAULT '',
+  description TEXT DEFAULT '',
   characteristics TEXT[] DEFAULT '{}',
   personality_images TEXT[] DEFAULT '{}',
   costume_images TEXT[] DEFAULT '{}',
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS characters (
 CREATE TABLE IF NOT EXISTS scenes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL DEFAULT '',
+  description TEXT DEFAULT '',
   visual_images TEXT[] DEFAULT '{}',
   lighting_tags TEXT[] DEFAULT '{}',
   lighting_images TEXT[] DEFAULT '{}',

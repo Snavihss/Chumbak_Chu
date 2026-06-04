@@ -61,6 +61,17 @@ async function updateFigmaFrame(record, type) {
     nameNode.characters = record.name || 'Unnamed';
   }
 
+  // 1.5 Update Description Text Layer
+  const descNode = frame.findOne(node => 
+    node.type === 'TEXT' && 
+    (node.name.toLowerCase() === 'description' || node.name.toLowerCase() === '#description')
+  );
+
+  if (descNode && descNode.type === 'TEXT') {
+    await figma.loadFontAsync(descNode.fontName);
+    descNode.characters = record.description || '';
+  }
+
   // 2. Update Characteristics / Keywords (for characters) or Lighting Keywords (for scenes)
   const tags = type === 'characters' ? (record.characteristics || []) : (record.lighting_tags || []);
   const tagsNode = frame.findOne(node => 
@@ -175,6 +186,17 @@ figma.on("documentchange", (event) => {
             table: recordType,
             id: recordId,
             field: 'name',
+            value: node.characters
+          });
+        }
+        
+        // Sync Description field
+        if (nameLower === 'description' || nameLower === '#description') {
+          figma.ui.postMessage({
+            type: 'sync-to-db',
+            table: recordType,
+            id: recordId,
+            field: 'description',
             value: node.characters
           });
         }

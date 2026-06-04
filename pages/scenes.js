@@ -234,6 +234,38 @@ function renderCurrentScene(contentArea, sidebar) {
   nameSection.appendChild(nameInput);
   contentArea.appendChild(nameSection);
 
+  // ─── Description ────────────────────────────────────
+  const descSection = document.createElement('div');
+  descSection.className = 'section-card';
+  const descTitle = document.createElement('div');
+  descTitle.className = 'section-title';
+  descTitle.textContent = 'Description';
+  const descInput = document.createElement('textarea');
+  descInput.className = 'tag-input';
+  descInput.style.width = '100%';
+  descInput.style.minHeight = '80px';
+  descInput.style.background = 'rgba(255, 255, 255, 0.02)';
+  descInput.style.border = '1px solid var(--border)';
+  descInput.style.borderRadius = 'var(--radius-input)';
+  descInput.style.color = 'var(--text-primary)';
+  descInput.style.padding = '0.75rem 1rem';
+  descInput.style.fontSize = '0.95rem';
+  descInput.style.outline = 'none';
+  descInput.style.resize = 'vertical';
+  descInput.style.fontFamily = 'var(--font)';
+  descInput.style.transition = 'border-color 0.3s ease';
+  descInput.addEventListener('focus', () => descInput.style.borderColor = 'var(--primary)');
+  descInput.addEventListener('blur', () => descInput.style.borderColor = 'var(--border)');
+  descInput.placeholder = 'Enter scene description...';
+  descInput.value = scene.description || '';
+  descInput.addEventListener('input', () => {
+    scene.description = descInput.value;
+    autoSave(scene);
+  });
+  descSection.appendChild(descTitle);
+  descSection.appendChild(descInput);
+  contentArea.appendChild(descSection);
+
   // ─── Visual References ──────────────────────────────
   const visualSection = document.createElement('div');
   visualSection.className = 'section-card';
@@ -341,6 +373,7 @@ function autoSave(scene) {
   saveTimeout = setTimeout(async () => {
     await updateScene(scene.id, {
       name: scene.name,
+      description: scene.description,
       visual_images: scene.visual_images,
       lighting_tags: scene.lighting_tags,
       lighting_images: scene.lighting_images,
